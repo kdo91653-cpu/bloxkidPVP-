@@ -1,0 +1,85 @@
+local KenModule = {}
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local commE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommE")
+local KenEnabled = false
+local autoKenRunning = false
+local player = Players.LocalPlayer
+local function HasTag(tagName)
+    local char = player.Character
+    if not char then return false end   
+    local CollectionService = game:GetService("CollectionService")
+    return CollectionService:HasTag(char, tagName)
+end
+local function StartKenLoop()
+    if autoKenRunning then return end
+    autoKenRunning = true  
+    task.spawn(function()
+        while KenEnabled do
+            task.wait(0.1) 
+            if HasTag("Ken") then
+                local playerGui = player:FindFirstChild("PlayerGui")
+                if playerGui then
+                    local kenButton = playerGui:FindFirstChild("MobileContextButtons")
+                        and playerGui.MobileContextButtons:FindFirstChild("ContextButtonFrame")
+                        and playerGui.MobileContextButtons.ContextButtonFrame:FindFirstChild("BoundActionKen")                   
+                    if kenButton and kenButton:GetAttribute("Selected") ~= true then
+                        kenButton:SetAttribute("Selected", true)
+                    end
+                end              
+                local success, observationManager = pcall(function()
+                    return getrenv()._G.OM
+                end)               
+                if success and observationManager and not observationManager.active then
+                    observationManager.radius = 0
+                    if type(observationManager.setActive) == "function" then
+                        observationManager:setActive(true)
+                    end
+                end
+                pcall(function()
+                    commE:FireServer("Ken", true)
+                end)
+            end
+        end
+        autoKenRunning = false
+    end)   
+    print("[Ken] Đã bật Auto Ken")
+end
+local function StopKenLoop()
+    KenEnabled = false
+    while autoKenRunning do
+        task.wait(0.1)
+    end   
+    print("[Ken] Đã tắt Auto Ken")
+end
+function KenModule:SetState(state)
+    if state == KenEnabled then return end  
+    KenEnabled = state
+    if state then
+        StartKenLoop()
+    else
+        StopKenLoop()
+    end
+end
+function KenModule:IsEnabled()
+    return KenEnabled
+end
+function KenModule:GetRunningState()
+    return autoKenRunning
+end
+player.CharacterAdded:Connect(function()
+    if KenEnabled and not autoKenRunning then
+        task.wait(1)
+        StartKenLoop()
+    end
+end)
+ReplicatedStorage.DescendantAdded:Connect(function(descendant)
+    if descendant.Name == "CommE" and KenEnabled then
+        StopKenLoop()
+        task.wait(1)
+        StartKenLoop()
+    end
+end)
+
+return KenModule
