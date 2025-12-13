@@ -1,0 +1,154 @@
+local FpsPingModule = {}
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+local GUI, Label
+local ToggleDisplay = false
+local ToggleBoost = false
+local fpsConnection, optimizeConnection
+local frames = 0
+local last = tick()
+local fps = 0
+local function CreateGui()
+	if GUI then return end
+	GUI = Instance.new("ScreenGui")
+	GUI.Name = "FPS_PING_GUI"
+	GUI.Parent = LocalPlayer:WaitForChild("PlayerGui")
+	GUI.ResetOnSpawn = false
+	Label = Instance.new("TextLabel")
+	Label.Size = UDim2.new(0,200,0,25)
+	Label.Position = UDim2.new(1,-10,0,10)
+	Label.AnchorPoint = Vector2.new(1,0)
+	Label.BackgroundTransparency = 1
+	Label.Font = Enum.Font.SourceSansBold
+	Label.TextSize = 18
+	Label.TextColor3 = Color3.new(1,1,1)
+	Label.RichText = true
+	Label.Parent = GUI
+end
+local function StartFPS()
+	if fpsConnection then return end
+
+	fpsConnection = RunService.RenderStepped:Connect(function(dt)
+		if not ToggleDisplay then return end
+
+		CreateGui()
+
+		frames += 1
+		if tick() - last >= 1 then
+			fps = frames
+			frames = 0
+			last = tick()
+		end
+
+		local ping = math.floor(LocalPlayer:GetNetworkPing()*2000)
+
+		local fpsColor = fps >= 60 and "00ff00" or fps >= 35 and "ffff00" or "ff0000"
+		local pingColor = ping <= 80 and "00ff00" or ping <= 150 and "ffff00" or "ff0000"
+
+		Label.Text = string.format(
+			'<font color="#%s">FPS: %s</font> | <font color="#%s">Ping: %sms</font>',
+			fpsColor,fps,pingColor,ping
+		)
+	end)
+end
+local function StopFPS()
+	if fpsConnection then 
+		fpsConnection:Disconnect() 
+		fpsConnection = nil 
+	end
+	
+	if GUI then
+		GUI:Destroy()
+		GUI = nil
+		Label = nil
+	end
+end
+local function Boost()
+	Lighting.GlobalShadows = false
+	Lighting.FogStart = 1e9
+	Lighting.FogEnd = 1e9
+	Lighting.Brightness = 2
+	Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
+
+	if Terrain then
+		Terrain.WaterWaveSpeed = 0
+		Terrain.WaterWaveSize = 0
+		Terrain.WaterTransparency = 1
+	end
+
+	for _,v in pairs(Workspace:GetDescendants()) do
+		if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+			v.Lifetime = NumberRange.new(0,0)
+		elseif v:IsA("Explosion") then
+			v.BlastPressure=1 
+			v.BlastRadius=1
+		elseif v:IsA("BasePart") or v:IsA("MeshPart") or v:IsA("UnionOperation") then
+			v.Material = Enum.Material.SmoothPlastic
+			v.CastShadow = false
+		elseif v:IsA("Decal") or v:IsA("Texture") then
+			v:Destroy()
+		end
+	end
+
+	if optimizeConnection then 
+		optimizeConnection:Disconnect() 
+	end
+  optimizeConnection = Workspace.DescendantAdded:Connect(function(v)
+		task.wait()
+		if v:IsA("ParticleEmitter") then 
+			v.Lifetime = NumberRange.new(0,0) 
+		end
+		if v:IsA("Trail") then 
+			v.Lifetime = 0 
+		end
+		if v:IsA("BasePart") then 
+			v.CastShadow = false 
+		end
+	end)
+end
+local function RemoveBoost()
+	if optimizeConnection then 
+		optimizeConnection:Disconnect() 
+		optimizeConnection = nil 
+	end
+end
+
+function FpsPingModule:SetDisplayState(state)
+	ToggleDisplay = state
+	if state then 
+		StartFPS() 
+		print("[FPS Ping] Đã bật hiển thị FPS/Ping")
+	else 
+		StopFPS() 
+		print("[FPS Ping] Đã tắt hiển thị FPS/Ping")
+	end
+end
+function FpsPingModule:SetBoostState(state)
+	ToggleBoost = state
+	if state then 
+		Boost() 
+		print("[FPS Ping] Đã bật FPS Boost")
+	else 
+		RemoveBoost() 
+		print("[FPS Ping] Đã tắt FPS Boost")
+	end
+end
+function FpsPingModule:IsDisplayEnabled()
+	return ToggleDisplay
+end
+function FpsPingModule:IsBoostEnabled()
+	return ToggleBoost
+end
+LocalPlayer:GetPropertyChangedSignal("Parent"):Connect(function()
+	if not LocalPlayer.Parent then
+		StopFPS()
+		RemoveBoost()
+	end
+end)
+
+return FpsPingModule
