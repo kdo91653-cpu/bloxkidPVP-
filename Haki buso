@@ -1,0 +1,69 @@
+local BusoModule = {}
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local commF_ = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+local AutoHakiBusoEnabled = false
+local busoLoop = nil
+local function StartBusoLoop()
+    if busoLoop then 
+        task.cancel(busoLoop)
+        busoLoop = nil
+    end
+    
+    busoLoop = task.spawn(function()
+        while AutoHakiBusoEnabled do
+            pcall(function()
+                local player = Players.LocalPlayer
+                local character = player.Character
+                
+                if character and not character:FindFirstChild("HasBuso") then
+                    local args = {[1] = "Buso"}
+                    commF_:InvokeServer(unpack(args))
+                end
+            end)
+            task.wait(1)
+        end
+    end)
+    
+    print("[Buso] Đã bật Auto Haki Buso")
+end
+
+local function StopBusoLoop()
+    AutoHakiBusoEnabled = false
+    if busoLoop then
+        task.cancel(busoLoop)
+        busoLoop = nil
+    end
+    
+    print("[Buso] Đã tắt Auto Haki Buso")
+end
+
+function BusoModule:SetState(state)
+    if state then
+        AutoHakiBusoEnabled = true
+        StartBusoLoop()
+    else
+        StopBusoLoop()
+    end
+end
+
+function BusoModule:IsEnabled()
+    return AutoHakiBusoEnabled
+end
+
+Players.LocalPlayer.CharacterAdded:Connect(function()
+    if AutoHakiBusoEnabled then
+        StopBusoLoop()
+        task.wait(2)
+        StartBusoLoop()
+    end
+end)
+ReplicatedStorage.DescendantAdded:Connect(function(descendant)
+    if descendant.Name == "CommF_" and AutoHakiBusoEnabled then
+        StopBusoLoop()
+        task.wait(1)
+        StartBusoLoop()
+    end
+end)
+
+return BusoModule
