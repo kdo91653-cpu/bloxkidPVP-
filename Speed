@@ -1,0 +1,83 @@
+local SpeedModule = {}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+
+local SpeedEnabled = false
+local WalkSpeedValue = 16
+local SpeedLoop = nil
+
+local function SetSpeed(speed)
+    local character = LocalPlayer.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = speed
+        end
+    end
+end
+
+local function StartSpeed()
+    if SpeedLoop then
+        SpeedLoop:Disconnect()
+    end
+
+    SpeedLoop = RunService.RenderStepped:Connect(function()
+        SetSpeed(WalkSpeedValue)
+    end)
+end
+
+local function StopSpeed()
+    if SpeedLoop then
+        SpeedLoop:Disconnect()
+        SpeedLoop = nil
+    end
+
+    SetSpeed(16)
+end
+
+function SpeedModule:SetState(state)
+    SpeedEnabled = state
+
+    if state then
+        StartSpeed()
+        print("[Speed] Đã bật - Tốc độ: " .. WalkSpeedValue)
+    else
+        StopSpeed()
+        print("[Speed] Đã tắt")
+    end
+end
+
+-- Đặt tốc độ (dùng cho slider)
+function SpeedModule:SetSpeed(value)
+    WalkSpeedValue = value
+    
+    -- Cập nhật tốc độ ngay lập tức nếu đang bật
+    if SpeedEnabled then
+        SetSpeed(WalkSpeedValue)
+    end
+    
+    print("[Speed] Đã đặt tốc độ: " .. value)
+end
+
+-- Lấy trạng thái hiện tại
+function SpeedModule:IsEnabled()
+    return SpeedEnabled
+end
+
+-- Lấy tốc độ hiện tại
+function SpeedModule:GetCurrentSpeed()
+    return WalkSpeedValue
+end
+
+-- Reset khi character respawn
+LocalPlayer.CharacterAdded:Connect(function(character)
+    if SpeedEnabled then
+        task.wait(1)
+        SetSpeed(WalkSpeedValue)
+    end
+end)
+
+return SpeedModule
