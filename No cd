@@ -1,0 +1,119 @@
+local DodgeNoCooldownModule = {}
+local Player = game:GetService("Players").LocalPlayer
+local NoDodgeCoroutine = nil
+local OriginalCooldown = 0.4
+local FoundFunction = nil
+local DodgeNoCooldownEnabled = false
+local function FindDodgeFunction()
+    if FoundFunction then return FoundFunction end
+    
+    local character = Player.Character
+    if not character then return nil end
+    
+    local dodgeScript = character:FindFirstChild("Dodge")
+    if not dodgeScript then return nil end
+    
+    for i, v in next, getgc() do
+        if typeof(v) == "function" and getfenv(v).script == dodgeScript then
+            for i2, v2 in next, getupvalues(v) do
+                if tostring(v2) == tostring(OriginalCooldown) then
+                    FoundFunction = {func = v, index = i2, value = v2}
+                    return FoundFunction
+                end
+            end
+        end
+    end
+    return nil
+end
+local function ToggleNoCooldown(enable)
+    if enable then
+        if NoDodgeCoroutine then
+            task.cancel(NoDodgeCoroutine)
+            NoDodgeCoroutine = nil
+        end
+        NoDodgeCoroutine = task.spawn(function()
+            while DodgeNoCooldownEnabled do
+                local dodgeFunc = FindDodgeFunction()
+                if dodgeFunc then
+                    pcall(function()
+                        setupvalue(dodgeFunc.func, dodgeFunc.index, 0)
+                    end)
+                else
+                    for _ = 1, 10 do
+                        task.wait(0.1)
+                        dodgeFunc = FindDodgeFunction()
+                        if dodgeFunc then break end
+                    end
+                end
+                task.wait(0.2) 
+            end          
+            if FoundFunction then
+                pcall(function()
+                    setupvalue(FoundFunction.func, FoundFunction.index, FoundFunction.value)
+                end)
+            end
+            NoDodgeCoroutine = nil
+        end)       
+        print("[DodgeNoCD] Đã bật")
+    else
+        if NoDodgeCoroutine then
+            task.cancel(NoDodgeCoroutine)
+            NoDodgeCoroutine = nil
+        end        
+        if FoundFunction then
+            pcall(function()
+                setupvalue(FoundFunction.func, FoundFunction.index, FoundFunction.value)
+            end)
+        end        
+        print("[DodgeNoCD] Đã tắt")
+    end
+end
+local function OnCharacterAdded()
+    FoundFunction = nil
+    for _ = 1, 20 do
+        if Player.Character and Player.Character:FindFirstChild("Dodge") then
+            break
+        end
+        task.wait(0.1)
+    end  
+    if DodgeNoCooldownEnabled then
+        ToggleNoCooldown(true)
+    end
+end
+function DodgeNoCooldownModule:SetState(state)
+    if state == DodgeNoCooldownEnabled then return end
+    
+    DodgeNoCooldownEnabled = state
+    ToggleNoCooldown(state)
+end
+function DodgeNoCooldownModule:IsEnabled()
+    return DodgeNoCooldownEnabled
+end
+function DodgeNoCooldownModule:Refresh()
+    FoundFunction = nil   
+    if DodgeNoCooldownEnabled then
+        ToggleNoCooldown(false)
+        task.wait(0.1)
+        ToggleNoCooldown(true)
+    end
+    print("[DodgeNoCD] Đã refresh")
+end
+Player.CharacterAdded:Connect(function(character)
+    task.wait(0.5)
+    OnCharacterAdded()
+end)
+if Player.Character then
+    OnCharacterAdded()
+end
+task.spawn(function()
+    while task.wait(1) do
+        if DodgeNoCooldownEnabled and not NoDodgeCoroutine then
+            ToggleNoCooldown(true)
+        elseif not DodgeNoCooldownEnabled and NoDodgeCoroutine then
+            ToggleNoCooldown(false)
+        end
+    end
+end)
+print("[DodgeNoCD] Module đã được tải thành công!")
+
+return DodgeNoCooldownModule
