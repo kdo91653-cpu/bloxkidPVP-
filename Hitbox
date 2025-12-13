@@ -1,0 +1,141 @@
+local HitboxExpansionModule = {}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+---------------------------------------------------------
+------------------- CONFIG ------------------------------
+---------------------------------------------------------
+
+local HITBOX_SIZE = Vector3.new(75,75,75)
+local LOOP_DELAY = 0          -- spam mỗi frame
+
+---------------------------------------------------------
+------------------- STATE -------------------------------
+---------------------------------------------------------
+
+local HitboxExpansionEnabled = false
+local hitboxLoop = nil
+local originalSizes = {}
+local originalProperties = {}
+
+---------------------------------------------------------
+----------------- MAIN FUNCTIONS ------------------------
+---------------------------------------------------------
+
+local function SaveOriginal(player, hrp)
+	if not originalSizes[player] then
+		originalSizes[player] = hrp.Size
+		originalProperties[player] = {
+			Transparency = hrp.Transparency,
+			BrickColor = hrp.BrickColor,
+			Material = hrp.Material,
+			CanCollide = hrp.CanCollide
+		}
+	end
+end
+
+local function ApplyHitbox()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character then
+
+			local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				SaveOriginal(player, hrp)
+
+				-- FORCE overwrite mỗi frame (giống script gốc)
+				hrp.Size = HITBOX_SIZE
+				hrp.Transparency = 0.9
+				hrp.BrickColor = BrickColor.new("Really red")
+				hrp.Material = Enum.Material.Neon
+				hrp.CanCollide = false
+			end
+
+		end
+	end
+end
+
+local function RestoreAll()
+	for player,size in pairs(originalSizes) do
+		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			local hrp = player.Character.HumanoidRootPart
+			hrp.Size = size
+
+			local p = originalProperties[player]
+			if p then
+				hrp.Transparency = p.Transparency
+				hrp.BrickColor = p.BrickColor
+				hrp.Material = p.Material
+				hrp.CanCollide = p.CanCollide
+			end
+		end
+	end
+
+	originalSizes = {}
+	originalProperties = {}
+end
+
+---------------------------------------------------------
+---------------- LOOP CONTROL ---------------------------
+---------------------------------------------------------
+
+local function Start()
+	if hitboxLoop then return end
+
+	hitboxLoop = task.spawn(function()
+		while HitboxExpansionEnabled do
+			ApplyHitbox()
+			RunService.Heartbeat:Wait() -- spam mỗi frame
+		end
+	end)
+end
+
+local function Stop()
+	HitboxExpansionEnabled = false
+
+	if hitboxLoop then
+		task.cancel(hitboxLoop)
+		hitboxLoop = nil
+	end
+
+	RestoreAll()
+end
+
+---------------------------------------------------------
+---------------- RESPAWN SUPPORT ------------------------
+---------------------------------------------------------
+
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function()
+		task.wait(1)
+		if HitboxExpansionEnabled then
+			ApplyHitbox()
+		end
+	end)
+end)
+
+---------------------------------------------------------
+---------------- WINDUI API READY -----------------------
+---------------------------------------------------------
+
+function HitboxExpansionModule:SetState(state)
+	HitboxExpansionEnabled = state
+
+	if state then
+		Start()
+	else
+		Stop()
+	end
+
+	-- update toggle UI nếu có
+	if self.UpdateToggle then
+		self.UpdateToggle(state)
+	end
+end
+
+function HitboxExpansionModule:IsEnabled()
+	return HitboxExpansionEnabled
+end
+
+return HitboxExpansionModule
