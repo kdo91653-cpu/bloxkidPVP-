@@ -1,0 +1,222 @@
+local FPSBoostModule = {}
+FPSBoostModule.Enabled = false
+FPSBoostModule.Connections = {}
+FPSBoostModule.OriginalSettings = {}
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+local function SaveOriginalSettings()
+    FPSBoostModule.OriginalSettings = {
+        FogStart = Lighting.FogStart,
+        FogEnd = Lighting.FogEnd,
+        GlobalShadows = Lighting.GlobalShadows,
+        ClockTime = Lighting.ClockTime,
+        Brightness = Lighting.Brightness,
+        OutdoorAmbient = Lighting.OutdoorAmbient,
+        WaterWaveSize = Terrain and Terrain.WaterWaveSize or nil,
+        WaterWaveSpeed = Terrain and Terrain.WaterWaveSpeed or nil,
+        WaterReflectance = Terrain and Terrain.WaterReflectance or nil,
+        WaterTransparency = Terrain and Terrain.WaterTransparency or nil
+    }
+end
+local function RestoreOriginalSettings()
+    if not next(FPSBoostModule.OriginalSettings) then return end   
+    Lighting.FogStart = FPSBoostModule.OriginalSettings.FogStart
+    Lighting.FogEnd = FPSBoostModule.OriginalSettings.FogEnd
+    Lighting.GlobalShadows = FPSBoostModule.OriginalSettings.GlobalShadows
+    Lighting.ClockTime = FPSBoostModule.OriginalSettings.ClockTime
+    Lighting.Brightness = FPSBoostModule.OriginalSettings.Brightness
+    Lighting.OutdoorAmbient = FPSBoostModule.OriginalSettings.OutdoorAmbient    
+    if Terrain then
+        Terrain.WaterWaveSize = FPSBoostModule.OriginalSettings.WaterWaveSize or 0
+        Terrain.WaterWaveSpeed = FPSBoostModule.OriginalSettings.WaterWaveSpeed or 0
+        Terrain.WaterReflectance = FPSBoostModule.OriginalSettings.WaterReflectance or 0
+        Terrain.WaterTransparency = FPSBoostModule.OriginalSettings.WaterTransparency or 1
+    end
+end
+local function IsPlayerModel(model)
+    return Players:GetPlayerFromCharacter(model) ~= nil
+end
+local function IsTreeObject(obj)
+    local name = obj.Name:lower()
+    if name:find("tree") or name:find("leaf") or name:find("bush") 
+       or name:find("foliage") or name:find("plant") or name:find("palm") then
+        return true
+    end
+    return false
+end
+local function OptimizeObject(obj)
+    local current = obj
+    while current do
+        if current:IsA("Model") and current:FindFirstChildOfClass("Humanoid") then
+            return false -- Không xử lý nhân vật
+        end
+        current = current.Parent
+    end
+    if obj:IsA("Model") then
+        if obj:FindFirstChildOfClass("Humanoid") and not IsPlayerModel(obj) then
+            obj:Destroy()
+            return true
+        end
+        if IsTreeObject(obj) then
+            obj:Destroy()
+            return true
+        end
+    end
+    if obj:IsA("BasePart") then
+        obj.Material = Enum.Material.SmoothPlastic
+        obj.CastShadow = false
+        obj.Reflectance = 0
+        local originalColor = obj.Color
+        local gray = (originalColor.R + originalColor.G + originalColor.B) / 3
+        obj.Color = Color3.new(
+            gray * 0.7 + originalColor.R * 0.3,
+            gray * 0.7 + originalColor.G * 0.3,
+            gray * 0.7 + originalColor.B * 0.3
+        )
+        return true
+    end
+    if obj:IsA("Decal") or obj:IsA("Texture") 
+       or obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+        obj:Destroy()
+        return true
+    end
+    if obj:IsA("Fire") or obj:IsA("Smoke") then
+        obj.Enabled = false
+        return true
+    end    
+    return false
+end
+local function OptimizeCharacterAccessories(character)
+    task.wait(1) -- Chờ character load hoàn chỉnh    
+    for _, item in ipairs(character:GetDescendants()) do
+        if item:IsA("Accessory") then
+            local handle = item:FindFirstChild("Handle")
+            if handle and handle:IsA("BasePart") then
+                handle.Color = Color3.fromRGB(180, 180, 180)
+                handle.Material = Enum.Material.SmoothPlastic
+            end
+        end
+        if item:IsA("Shirt") or item:IsA("Pants") or item:IsA("ShirtGraphic") then
+            item:Destroy()
+        end
+    end
+end
+local function RemoveSkyAndAtmosphere()
+    for _, obj in ipairs(Lighting:GetChildren()) do
+        if obj:IsA("Sky") or obj:IsA("Atmosphere") or obj:IsA("PostEffect") then
+            obj:Destroy()
+        end
+    end
+end
+local function ConfigureLighting()
+    Lighting.FogStart = 1e9
+    Lighting.FogEnd = 1e9
+    Lighting.GlobalShadows = false
+    Lighting.ClockTime = 12
+    Lighting.Brightness = 1.5
+    Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+end
+local function ConfigureWater()
+    if Terrain then
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0
+        Terrain.WaterTransparency = 1
+    end
+end
+local function OptimizeWorkspace()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        OptimizeObject(obj)
+    end
+end
+local function SetupConnections()
+    local descAddedConnection = Workspace.DescendantAdded:Connect(function(obj)
+        task.wait(0.1)
+        OptimizeObject(obj)
+    end)    
+    table.insert(FPSBoostModule.Connections, descAddedConnection)
+    local function setupCharacterConnections(player)
+        local charAddedConnection = player.CharacterAdded:Connect(function(character)
+            spawn(function()
+                OptimizeCharacterAccessories(character)
+            end)
+        end)
+        table.insert(FPSBoostModule.Connections, charAddedConnection)
+        if player.Character then
+            spawn(function()
+                OptimizeCharacterAccessories(player.Character)
+            end)
+        end
+    end
+    setupCharacterConnections(Players.LocalPlayer)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= Players.LocalPlayer then
+            setupCharacterConnections(player)
+        end
+    end    
+    local playerAddedConnection = Players.PlayerAdded:Connect(function(player)
+        setupCharacterConnections(player)
+    end)
+    table.insert(FPSBoostModule.Connections, playerAddedConnection)
+end
+local function DisconnectAll()
+    for _, conn in ipairs(FPSBoostModule.Connections) do
+        if conn.Connected then
+            conn:Disconnect()
+        end
+    end
+    FPSBoostModule.Connections = {}
+end
+function FPSBoostModule:SetState(state)
+    if state == self.Enabled then return end    
+    if state then
+        print("[FPS Boost] Đang bật tối ưu hóa...")
+        SaveOriginalSettings()
+        ConfigureLighting()
+        RemoveSkyAndAtmosphere()
+        ConfigureWater()
+        OptimizeWorkspace()
+        SetupConnections()       
+        self.Enabled = true
+        print("[FPS Boost]Đã bật")
+        if WindUI then
+            WindUI:Notify({
+                Title = "FPS Boost",
+                Content = "Đã bật tối ưu hóa FPS!",
+                Duration = 3,
+                Type = "success"
+            })
+        end        
+    else
+        print("[FPS Boost] Đang tắt...")
+        DisconnectAll()
+        RestoreOriginalSettings()       
+        self.Enabled = false
+        print("[FPS Boost] Đã tắt!")
+        if WindUI then
+            WindUI:Notify({
+                Title = "FPS Boost",
+                Content = "Đã tắt tối ưu hóa FPS!",
+                Duration = 3,
+                Type = "warning"
+            })
+        end
+    end
+end
+function FPSBoostModule:Toggle(state)
+    self:SetState(state)
+end
+function FPSBoostModule:GetState()
+    return self.Enabled
+end
+function FPSBoostModule:Init()
+    print("[FPS Boost Module] Đã sẵn sàng")
+    print("Sử dụng: FPSBoostModule:SetState(true/false)")
+    print("Hoặc: FPSBoostModule:Toggle(state)")
+    return self
+end
+FPSBoostModule:Init()
+
+return FPSBoostModule
