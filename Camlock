@@ -4,187 +4,193 @@ CamlockModule.Connections = {}
 CamlockModule.CurrentTarget = nil
 CamlockModule.UIVisible = true
 CamlockModule.Keybinds = {
-    Toggle = Enum.KeyCode.T,
-    Switch = Enum.KeyCode.Y
+	Toggle = Enum.KeyCode.T,
+	Switch = Enum.KeyCode.Y
 }
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local function GetClosestPlayer()
-    local target = nil
-    local maxDot = -1
-    local camera = workspace.CurrentCamera
-    local cameraPos = camera.CFrame.Position
-    local cameraLook = camera.CFrame.LookVector
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character then
-            local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-            local hum = p.Character:FindFirstChildOfClass("Humanoid")
-            if hrp and hum and hum.Health > 0 then
-                local dir = (hrp.Position - cameraPos).Unit
-                local dot = cameraLook:Dot(dir)
-                if dot > 0 and dot > maxDot then
-                    maxDot = dot
-                    target = p
-                end
-            end
-        end
-    end
-    return target
+	local camera = workspace.CurrentCamera
+	local camPos = camera.CFrame.Position
+	local camLook = camera.CFrame.LookVector
+	local best, bestDot = nil, -1
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character then
+			local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+			local hum = p.Character:FindFirstChildOfClass("Humanoid")
+			if hrp and hum and hum.Health > 0 then
+				local dir = (hrp.Position - camPos).Unit
+				local dot = camLook:Dot(dir)
+				if dot > bestDot then
+					bestDot = dot
+					best = p
+				end
+			end
+		end
+	end
+	return best
 end
-local function GetBodyPosition(character)
-    if not character then return end
-    local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    if torso then
-        return torso.Position
-    elseif hrp then
-        return hrp.Position + Vector3.new(0,1.5,0)
-    end
-end
-local function GetNextTarget()
-    if not CamlockModule.CurrentTarget then
-        return GetClosestPlayer()
-    end
-    local players = Players:GetPlayers()
-    local index = table.find(players, CamlockModule.CurrentTarget) or 0
-    for i = 1, #players do
-        local nextIndex = (index + i - 1) % #players + 1
-        local p = players[nextIndex]
-        if p ~= player and p.Character then
-            local hum = p.Character:FindFirstChildOfClass("Humanoid")
-            if hum and hum.Health > 0 then
-                return p
-            end
-        end
-    end
+local function GetBodyPosition(char)
+	if not char then return end
+	local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if torso then
+		return torso.Position
+	elseif hrp then
+		return hrp.Position + Vector3.new(0,1.5,0)
+	end
 end
 local function UpdateCamlock()
-    if not CamlockModule.Enabled or not CamlockModule.CurrentTarget then return end
-    local char = CamlockModule.CurrentTarget.Character
-    if not char then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hum or hum.Health <= 0 then return end
-    local pos = GetBodyPosition(char)
-    if pos then
-        local cam = workspace.CurrentCamera
-        cam.CFrame = CFrame.new(cam.CFrame.Position, pos)
-    end
-end
-local function ToggleCamlock()
-    CamlockModule.Enabled = not CamlockModule.Enabled
-    if not CamlockModule.Enabled then
-        CamlockModule.CurrentTarget = nil
-    else
-        CamlockModule.CurrentTarget = GetClosestPlayer()
-    end
-end
-local function SwitchTarget()
-    CamlockModule.CurrentTarget = GetNextTarget()
+	if not CamlockModule.Enabled or not CamlockModule.CurrentTarget then return end
+	local target = CamlockModule.CurrentTarget
+	if not target.Character then
+		CamlockModule.CurrentTarget = GetClosestPlayer()
+		return
+	end
+	local hum = target.Character:FindFirstChildOfClass("Humanoid")
+	if not hum or hum.Health <= 0 then
+		CamlockModule.CurrentTarget = GetClosestPlayer()
+		return
+	end
+	local cam = workspace.CurrentCamera
+	local camPos = cam.CFrame.Position
+	local targetPos = GetBodyPosition(target.Character)
+	if targetPos then
+		cam.CFrame = CFrame.new(camPos, targetPos)
+	end
 end
 local function CreateUI()
-    if CamlockModule.UI then return CamlockModule.UI end
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "WaveUI"
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = player:WaitForChild("PlayerGui")
-    local Main = Instance.new("Frame")
-    Main.Name = "MainFrame"
-    Main.Size = UDim2.new(0,150,0,100)
-    Main.Position = UDim2.new(0.5,-75,0.45,0)
-    Main.BackgroundColor3 = Color3.fromRGB(20,20,20)
-    Main.BorderSizePixel = 0
-    Main.Parent = ScreenGui
-    Instance.new("UICorner", Main).CornerRadius = UDim.new(0,14)
-    local stroke = Instance.new("UIStroke", Main)
-    stroke.Thickness = 2
-    local TopBtn = Instance.new("TextButton")
-    TopBtn.Size = UDim2.new(0,120,0,28)
-    TopBtn.Position = UDim2.new(0.5,0,0,10)
-    TopBtn.AnchorPoint = Vector2.new(0.5,0)
-    TopBtn.Text = "   MAIN MODE"
-    TopBtn.Font = Enum.Font.GothamBold
-    TopBtn.TextSize = 12
-    TopBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
-    TopBtn.Parent = Main
-    Instance.new("UICorner", TopBtn).CornerRadius = UDim.new(0,10)
-    local icon = Instance.new("ImageLabel")
-    icon.Size = UDim2.new(0,16,0,16)
-    icon.Position = UDim2.new(0,8,0.5,0)
-    icon.AnchorPoint = Vector2.new(0,0.5)
-    icon.BackgroundTransparency = 1
-    icon.Image = "rbxassetid://111450164466537"
-    icon.Parent = TopBtn
-    local LeftBtn = Instance.new("TextButton")
-    LeftBtn.Name = "LeftBtn"
-    LeftBtn.Size = UDim2.new(0,55,0,28)
-    LeftBtn.Position = UDim2.new(0.25,0,1,-10)
-    LeftBtn.AnchorPoint = Vector2.new(0.5,1)
-    LeftBtn.Text = "camlock"
-    LeftBtn.Parent = Main
-    Instance.new("UICorner", LeftBtn).CornerRadius = UDim.new(0,10)
-    local RightBtn = Instance.new("TextButton")
-    RightBtn.Name = "RightBtn"
-    RightBtn.Size = UDim2.new(0,55,0,28)
-    RightBtn.Position = UDim2.new(0.75,0,1,-10)
-    RightBtn.AnchorPoint = Vector2.new(0.5,1)
-    RightBtn.Text = "switch"
-    RightBtn.Parent = Main
-    Instance.new("UICorner", RightBtn).CornerRadius = UDim.new(0,10)
-    local dragging = false
-    local dragStart
-    local startPos
-    TopBtn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = UserInputService:GetMouseLocation()
-            startPos = Main.Position
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if not dragging then return end
-        if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch then
-            local delta = UserInputService:GetMouseLocation() - dragStart
-            Main.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
-    LeftBtn.MouseButton1Click:Connect(ToggleCamlock)
-    RightBtn.MouseButton1Click:Connect(SwitchTarget)
-
-    CamlockModule.UI = ScreenGui
-    return ScreenGui
+	if CamlockModule.UI then return CamlockModule.UI end
+	local ScreenGui = Instance.new("ScreenGui")
+	ScreenGui.Name = "WaveUI"
+	ScreenGui.ResetOnSpawn = false
+	ScreenGui.Parent = player:WaitForChild("PlayerGui")
+	local Main = Instance.new("Frame")
+	Main.Name = "MainFrame"
+	Main.Size = UDim2.new(0,150,0,100)
+	Main.Position = UDim2.new(0.5,-75,0.45,0)
+	Main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	Main.BackgroundTransparency = 0.15
+	Main.BorderSizePixel = 0
+	Main.Active = true
+	Main.Parent = ScreenGui
+	Instance.new("UICorner", Main).CornerRadius = UDim.new(0,14)
+	local MainStroke = Instance.new("UIStroke")
+	MainStroke.Thickness = 2
+	MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	MainStroke.Parent = Main
+	local TopBtn = Instance.new("TextButton")
+	TopBtn.Size = UDim2.new(0,120,0,28)
+	TopBtn.Position = UDim2.new(0.5,0,0,10)
+	TopBtn.AnchorPoint = Vector2.new(0.5,0)
+	TopBtn.Text = "khanhly.Aim"
+	TopBtn.Font = Enum.Font.GothamBold
+	TopBtn.TextSize = 12
+	TopBtn.TextColor3 = Color3.fromRGB(240,240,240)
+	TopBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
+	TopBtn.Parent = Main
+	Instance.new("UICorner", TopBtn).CornerRadius = UDim.new(0,10)
+	local TopStroke = Instance.new("UIStroke", TopBtn)
+	TopStroke.Thickness = 1.6
+	local Icon = Instance.new("ImageLabel")
+	Icon.Size = UDim2.new(0,16,0,16)
+	Icon.Position = UDim2.new(0,8,0.5,0)
+	Icon.AnchorPoint = Vector2.new(0,0.5)
+	Icon.BackgroundTransparency = 1
+	Icon.Image = "rbxassetid://111450164466537"
+	Icon.ImageColor3 = Color3.fromRGB(230,230,230)
+	Icon.Parent = TopBtn
+	local LeftBtn = Instance.new("TextButton")
+	LeftBtn.Name = "LeftBtn"
+	LeftBtn.Size = UDim2.new(0,55,0,28)
+	LeftBtn.Position = UDim2.new(0.25,0,1,-10)
+	LeftBtn.AnchorPoint = Vector2.new(0.5,1)
+	LeftBtn.Text = "camlock"
+	LeftBtn.Font = Enum.Font.GothamSemibold
+	LeftBtn.TextSize = 11
+	LeftBtn.TextColor3 = Color3.fromRGB(240,240,240)
+	LeftBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
+	LeftBtn.Parent = Main
+	Instance.new("UICorner", LeftBtn).CornerRadius = UDim.new(0,10)
+	local LeftStroke = Instance.new("UIStroke", LeftBtn)
+	local RightBtn = Instance.new("TextButton")
+	RightBtn.Name = "RightBtn"
+	RightBtn.Size = UDim2.new(0,55,0,28)
+	RightBtn.Position = UDim2.new(0.75,0,1,-10)
+	RightBtn.AnchorPoint = Vector2.new(0.5,1)
+	RightBtn.Text = "switch"
+	RightBtn.Font = Enum.Font.GothamSemibold
+	RightBtn.TextSize = 11
+	RightBtn.TextColor3 = Color3.fromRGB(240,240,240)
+	RightBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
+	RightBtn.Parent = Main
+	Instance.new("UICorner", RightBtn).CornerRadius = UDim.new(0,10)
+	local RightStroke = Instance.new("UIStroke", RightBtn)
+	local dragging = false
+	local dragStart, startPos
+	TopBtn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = UserInputService:GetMouseLocation()
+			startPos = Main.Position
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging then
+			local delta = UserInputService:GetMouseLocation() - dragStart
+			Main.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+	local t = 0
+	local waveConn = RunService.RenderStepped:Connect(function(dt)
+		t += dt * 2.2
+		local wave = (math.sin(t) + 1) / 2
+		local frameGray = math.floor(60 + wave * 180)
+		local btnGray = math.floor(90 + wave * 140)
+		MainStroke.Color = Color3.fromRGB(frameGray, frameGray, frameGray)
+		local btnColor = Color3.fromRGB(btnGray, btnGray, btnGray)
+		TopStroke.Color = btnColor
+		LeftStroke.Color = btnColor
+		RightStroke.Color = btnColor
+	end)
+	LeftBtn.MouseButton1Click:Connect(function()
+		CamlockModule.Enabled = not CamlockModule.Enabled
+		CamlockModule.CurrentTarget = CamlockModule.Enabled and GetClosestPlayer() or nil
+	end)
+	RightBtn.MouseButton1Click:Connect(function()
+		CamlockModule.CurrentTarget = GetClosestPlayer()
+	end)
+	CamlockModule.UI = ScreenGui
+	table.insert(CamlockModule.Connections, waveConn)
+	return ScreenGui
 end
 function CamlockModule:SetState(state)
-    if state then
-        CreateUI()
-        table.insert(self.Connections,
-            RunService.RenderStepped:Connect(UpdateCamlock)
-        )
-        self.Enabled = true
-    else
-        for _,c in ipairs(self.Connections) do
-            if c.Connected then c:Disconnect() end
-        end
-        self.Connections = {}
-        self.Enabled = false
-    end
+	if state == self.Enabled then return end
+	self.Enabled = state
+	if state then
+		CreateUI()
+		table.insert(self.Connections,
+			RunService.RenderStepped:Connect(UpdateCamlock)
+		)
+	end
 end
 function CamlockModule:Init()
-    return self
+	print("[CamlockModule] Loaded")
+	return self
 end
 
 CamlockModule:Init()
