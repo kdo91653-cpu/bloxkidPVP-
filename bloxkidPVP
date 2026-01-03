@@ -11,7 +11,6 @@ local function safeCall(fn, ...)
     local ok, res = pcall(fn, ...)
     return ok, res
 end
-
 local function safeLoadModule(url, name)
     local ok, res = pcall(function()
         local body = game:HttpGet(url)
@@ -26,7 +25,6 @@ local function safeLoadModule(url, name)
         return nil, res
     end
 end
-
 local WindUI = nil
 local ok, ui = pcall(function()
     return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
@@ -36,7 +34,6 @@ if ok and ui then
 else
     error("Failed to load WindUI. Aborting GUI load. Error: " .. tostring(ui))
 end
-
 local Window = WindUI:CreateWindow({
     Title = "Khanhly X PVP bloxfruit",
     Icon = "rbxassetid://111450164466537",
@@ -47,13 +44,12 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark",
     Resizable = true,
     SideBarWidth = 150,
-    Background = "rbxassetid://92123900506900",
+    Background = "rbxassetid://119426508066372",
     BackgroundImageTransparency = 0.42,
     HideSearchBar = false,
     ScrollBarEnabled = false,
     User = { Enabled = true, Anonymous = false },
 })
-
 Window:EditOpenButton({
     Title = "khanhly Hub",
     Icon = "rbxassetid://111450164466537",
@@ -62,21 +58,19 @@ Window:EditOpenButton({
     Color = ColorSequence.new(Color3.fromHex("FF0F7B"), Color3.fromHex("F89B29")),
     Draggable = true,
 })
-
 local Tabs = {
     Ds = Window:Tab({ Title = "Discord", Icon = "ghost" }),
     Main = Window:Tab({ Title = "Main", Icon = "gem" }),
     Fus = Window:Tab({ Title = "Function", Icon = "cog" }),
     Seg = Window:Tab({ Title = "Settings", Icon = "cog" }),
 }
-
 Tabs.Ds:Button({
     Title = "Copy Link Discord Khanhly",
     Desc = "Sao chép link Discord vào clipboard",
     Callback = function()
         pcall(setclipboard, "https://discord.com/invite/shkGwKQMaM")
         StarterGui:SetCore("SendNotification", {
-            Title = "✅ Đã sao chép!",
+            Title = "Đã sao chép!",
             Text = "Link Discord Khanhly đã được copy vào clipboard.",
             Duration = 5
         })
@@ -88,15 +82,13 @@ Tabs.Ds:Button({
     Callback = function()
         pcall(setclipboard, "https://www.tiktok.com/@script.khanhly?_r=1&_t=ZS-91sOTk6TLaE")
         StarterGui:SetCore("SendNotification", {
-            Title = "✅ Đã sao chép!",
+            Title = "Đã sao chép!",
             Text = "Link tiktok Khanhly đã được copy vào clipboard.",
             Duration = 5
         })
     end,
 })
-
 local modules = {}
-
 local function registerModule(key, url, name)
     local mod, err = safeLoadModule(url, name or key)
     modules[key] = mod
@@ -110,8 +102,8 @@ local function registerModule(key, url, name)
     end
     return mod
 end
-
 modules.Aimbot = safeLoadModule("https://raw.githubusercontent.com/kdo91653-cpu/bloxkidPVP-/refs/heads/main/Aim%20play", "Aimbot")
+modules.CamlockWave = safeLoadModule("https://raw.githubusercontent.com/kdo91653-cpu/bloxkidPVP-/refs/heads/main/Camlock", "CamlockWave")
 modules.HitboxExpansion = safeLoadModule("https://raw.githubusercontent.com/kdo91653-cpu/bloxkidPVP-/refs/heads/main/Hitbox", "HitboxExpansion")
 modules.FlashAttack = safeLoadModule("https://raw.githubusercontent.com/kdo91653-cpu/bloxkidPVP-/refs/heads/main/Flash%20attack", "FlashAttack")
 modules.RaceV4 = safeLoadModule("https://raw.githubusercontent.com/kdo91653-cpu/bloxkidPVP-/refs/heads/main/RaceV4", "RaceV4")
@@ -127,8 +119,8 @@ modules.NoClip = safeLoadModule("https://raw.githubusercontent.com/kdo91653-cpu/
 modules.Speed = safeLoadModule("https://raw.githubusercontent.com/kdo91653-cpu/bloxkidPVP-/refs/heads/main/Speed", "Speed")
 modules.JumpHack = safeLoadModule("https://raw.githubusercontent.com/kdo91653-cpu/bloxkidPVP-/refs/heads/main/Jump", "JumpHack")
 modules.FPSBoost = safeLoadModule("https://raw.githubusercontent.com/kdo91653-cpu/bloxkidPVP-/refs/heads/main/Fps%20boss", "FPSBoost")
+modules.FPSBoostMAX = safeLoadModule("https://raw.githubusercontent.com/kdo91653-cpu/bloxkidPVP-/refs/heads/main/Fps%20boost%20max", "FPSBoostMAX")
 modules.FpsPing = safeLoadModule("https://raw.githubusercontent.com/kdo91653-cpu/bloxkidPVP-/refs/heads/main/Fps%20ping%20v2", "FpsPing")
-
 
 local secMain = Tabs.Main:Section({ Title = "Auto PVP", Opened = true })
 secMain:Toggle({
@@ -145,8 +137,21 @@ secMain:Toggle({
         end
     end
 })
-
--- Hitbox toggle (default false)
+secMain:Toggle({
+    Title = "Wave Camlock",
+    Desc = "Camlock T/Y để điều khiển",
+    Default = false,
+    Callback = function(state)
+        local module = modules.CamlockWave
+        if module and type(module.SetState) == "function" then
+            pcall(function()
+                module:SetState(state)
+            end)
+        else
+            warn("Camlock module not available")
+        end
+    end
+})
 secMain:Toggle({
     Title = "Hitbox Expansion",
     Desc = "Mở rộng hitbox đối thủ",
@@ -161,8 +166,6 @@ secMain:Toggle({
         end
     end
 })
-
--- Flash Attack
 secMain:Toggle({
     Title = "Flash Attack",
     Desc = "Attack",
@@ -176,8 +179,6 @@ secMain:Toggle({
         end
     end
 })
-
--- Race V4
 secMain:Toggle({
     Title = "Auto Race V4",
     Desc = "Auto race",
@@ -191,8 +192,6 @@ secMain:Toggle({
         end
     end
 })
-
--- Anti Stun
 secMain:Toggle({
     Title = "Anti Stun",
     Desc = "Kháng hiệu ứng stun/knockback",
@@ -206,8 +205,6 @@ secMain:Toggle({
         end
     end
 })
-
--- Walk on water
 secMain:Toggle({
     Title = "Walk Water",
     Desc = "Đi trên mặt nước",
@@ -221,7 +218,6 @@ secMain:Toggle({
         end
     end
 })
-
 local secAuto = Tabs.Fus:Section({ Title = "Auto Skill", Icon = "sword", Opened = true })
 local function makeSimpleToggle(tab, title, desc, moduleKey, methodName)
     tab:Toggle({
@@ -269,7 +265,6 @@ Tabs.Fus:Slider({
         end
     end
 })
-
 makeSimpleToggle(Tabs.Fus, "Jump", "ON / OFF", "JumpHack", "SetState")
 Tabs.Fus:Slider({
     Title = "Jump Power",
@@ -290,9 +285,9 @@ Tabs.Fus:Slider({
         end
     end
 })
-
 local secSettings = Tabs.Seg:Section({ Title = "Settings", Opened = true })
 makeSimpleToggle(Tabs.Seg, "FPS Boost", "Tối ưu hóa FPS", "FPSBoost", "SetState")
+makeSimpleToggle(Tabs.Seg, "FPS Boost MAX", "Tối ưu hóa FPS", "FPSBoostMAX", "SetState")
 makeSimpleToggle(Tabs.Seg, "FPS/Ping Display", "ping fps", "FpsPing", "SetDisplayState")
 
 local antiAfkConnection
@@ -309,7 +304,6 @@ Tabs.Seg:Toggle({
                     VirtualUser:ClickButton2(Vector2.new(0,0))
                 end)
             end
-
             WindUI:Notify({ Title = "Anti AFK", Content = "Đã bật", Duration = 4, Type = "success" })
             notifyLoop = task.spawn(function()
                 while task.wait(600) do
@@ -329,7 +323,6 @@ Tabs.Seg:Toggle({
         end
     end,
 })
-
 local function getServersPage(gameId, cursor)
     local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(gameId)
     if cursor then url = url .. "&cursor=" .. tostring(cursor) end
@@ -339,7 +332,6 @@ local function getServersPage(gameId, cursor)
     if not ok2 then return nil, data end
     return data
 end
-
 local function serverHop()
     local gameId = game.PlaceId
     local currentJobId = game.JobId
@@ -348,14 +340,12 @@ local function serverHop()
         WindUI:Notify({ Title = "Server Hop", Content = "⚠️ Không lấy được danh sách server.", Duration = 4, Type = "error" })
         return
     end
-
     local servers = {}
     for _, server in pairs(data.data or {}) do
         if server.id ~= currentJobId and server.playing < (server.maxPlayers or 0) then
             table.insert(servers, server.id)
         end
     end
-
     if #servers > 0 then
         local randomServer = servers[math.random(1, #servers)]
         WindUI:Notify({ Title = "Server Hop", Content = "🔁 Đang chuyển sang server mới...", Duration = 3, Type = "info" })
@@ -365,13 +355,11 @@ local function serverHop()
         WindUI:Notify({ Title = "Server Hop", Content = "❌ Không tìm thấy server phù hợp.", Duration = 4, Type = "warning" })
     end
 end
-
 Tabs.Seg:Button({
     Title = "Server Hop",
     Desc = "Chuyển sang server ngẫu nhiên khác",
     Callback = serverHop,
 })
-
 local function randomServer()
     local gameId = game.PlaceId
     local currentJobId = game.JobId
@@ -380,14 +368,12 @@ local function randomServer()
         WindUI:Notify({ Title = "Random Server", Content = "⚠️ Không lấy được danh sách server.", Duration = 4, Type = "error" })
         return
     end
-
     local allServers = {}
     for _, server in pairs(data.data or {}) do
         if server.playing < (server.maxPlayers or 0) and server.id ~= currentJobId then
             table.insert(allServers, server.id)
         end
     end
-
     if #allServers > 0 then
         local pick = allServers[math.random(1, #allServers)]
         WindUI:Notify({ Title = "Random Server", Content = "🎲 Đang chuyển sang server ngẫu nhiên...", Duration = 3, Type = "info" })
@@ -397,7 +383,6 @@ local function randomServer()
         WindUI:Notify({ Title = "Random Server", Content = "❌ Không tìm thấy server phù hợp.", Duration = 4, Type = "warning" })
     end
 end
-
 Tabs.Seg:Button({
     Title = "Random Server",
     Desc = "Vào server ngẫu nhiên bất kỳ",
